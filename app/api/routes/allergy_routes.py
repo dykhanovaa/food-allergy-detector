@@ -26,8 +26,9 @@ def get_one(allergy_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=AllergyOut)
-def create(data: AllergyCreate, db: Session = Depends(get_db)):
-    return ctrl.create_allergy(db, data.name)
+def create(data: AllergyCreate, name: str=None, db: Session = Depends(get_db)):
+    allergy_name = name if name is not None else data.name
+    return ctrl.create_allergy(db, allergy_name)
 
 
 @router.put("/{allergy_id}", response_model=AllergyOut)
