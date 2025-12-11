@@ -162,18 +162,32 @@ function App() {
     }
   };
 
-  const handleAnalyze = (imageFile: File) => {
-    const mockResult: AnalysisResult = {
-      productName: 'Шоколадное печенье',
-      ingredients: ['Пшеничная мука', 'Сахар', 'Масло сливочное', 'Какао', 'Молоко сухое', 'Яйца', 'Разрыхлитель'],
-      detectedAllergens: ['Молоко', 'Пшеница (глютен)', 'Яйца'],
-      isSafe: currentUser?.allergies.includes('Молоко') ? false : true,
-      warnings: currentUser?.allergies.includes('Молоко')
-        ? ['⚠️ Содержит молоко - один из ваших аллергенов!']
-        : []
-    };
-    setAnalysisResult(mockResult);
-    setCurrentPage('analysis');
+  const handleAnalyze = async (imageFile: File) => {
+    const token = localStorage.getItem('access_token');
+    const formData = new FormData();
+    formData.append('file', imageFile);
+
+    const res = await fetch('http://localhost:8000/api/scans/analyze', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      // 🔁 Преобразуем snake_case → camelCase
+      const normalizedResult: AnalysisResult = {
+        productName: data.product_name || "Не определено",
+        ingredients: data.ingredients || [],
+        detectedAllergens: data.detected_allergens || [],
+        isSafe: data.is_safe ?? true,
+        warnings: data.warnings || []
+      };
+      setAnalysisResult(normalizedResult);
+      setCurrentPage('analysis');
+    } else {
+      setError(data.detail || 'Ошибка анализа');
+    }
   };
 
   if (!currentUser) {
