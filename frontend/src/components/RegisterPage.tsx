@@ -1,3 +1,5 @@
+// frontend/src/components/RegisterPage.tsx
+
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { AlertCircle } from 'lucide-react';
 
 type RegisterPageProps = {
-  onRegister: (email: string, password: string, name: string) => void;
+  onRegister: (email: string, password: string, name: string) => Promise<string | null>;
   onNavigateToLogin: () => void;
 };
 
@@ -14,11 +16,16 @@ export function RegisterPage({ onRegister, onNavigateToLogin }: RegisterPageProp
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     if (email && password && name) {
-      onRegister(email, password, name);
+      const errorMsg = await onRegister(email, password, name);
+      if (errorMsg) {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -36,6 +43,20 @@ export function RegisterPage({ onRegister, onNavigateToLogin }: RegisterPageProp
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {error && (
+              <div
+                style={{
+                  color: '#dc2626',
+                  backgroundColor: '#fef2f2',
+                  borderColor: '#fecaca',
+                  padding: '0.75rem',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem'
+                }}
+              >
+                {error}
+              </div>
+                        )}
             <div className="space-y-2">
               <Label htmlFor="name">Имя</Label>
               <Input

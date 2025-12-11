@@ -82,9 +82,7 @@ function App() {
     }
   };
 
-  const handleLogin = async (email: string, password: string) => {
-    setLoading(true);
-    setError(null);
+  const handleLogin = async (email: string, password: string): Promise<string | null> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -97,35 +95,32 @@ function App() {
         const allergiesRes = await fetch(`${API_BASE_URL}/users/allergies/list`);
         const allergies = await allergiesRes.json();
         await fetchProfileWithAllergies(data.access_token, allergies);
+        return null; // всё ок
       } else {
-        setError(data.detail || 'Ошибка входа');
+        // Бэкенд возвращает detail в случае ошибки
+        return data.detail || 'Ошибка входа';
       }
     } catch (err) {
-      setError('Ошибка сети');
-    } finally {
-      setLoading(false);
+      return 'Ошибка сети. Проверьте подключение.';
     }
   };
 
-  const handleRegister = async (email: string, password: string, name: string) => {
-    setLoading(true);
-    setError(null);
+  const handleRegister = async (email: string, password: string, name: string): Promise<string | null> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name })
       });
+      const data = await res.json();
       if (res.ok) {
         await handleLogin(email, password);
+        return null;
       } else {
-        const data = await res.json();
-        setError(data.detail || 'Ошибка регистрации');
+        return data.detail || 'Ошибка регистрации';
       }
     } catch (err) {
-      setError('Ошибка сети');
-    } finally {
-      setLoading(false);
+      return 'Ошибка сети. Проверьте подключение.';
     }
   };
 

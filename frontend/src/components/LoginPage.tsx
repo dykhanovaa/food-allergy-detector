@@ -1,3 +1,5 @@
+// frontend/src/components/LoginPage.tsx
+
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,18 +8,23 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { AlertCircle } from 'lucide-react';
 
 type LoginPageProps = {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string) => Promise<string | null>;
   onNavigateToRegister: () => void;
 };
 
 export function LoginPage({ onLogin, onNavigateToRegister }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     if (email && password) {
-      onLogin(email, password);
+      const errorMsg = await onLogin(email, password);
+      if (errorMsg) {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -35,6 +42,20 @@ export function LoginPage({ onLogin, onNavigateToRegister }: LoginPageProps) {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {error && (
+              <div
+                style={{
+                  color: '#dc2626',
+                  backgroundColor: '#fef2f2',
+                  borderColor: '#fecaca',
+                  padding: '0.75rem',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem'
+                }}
+              >
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
