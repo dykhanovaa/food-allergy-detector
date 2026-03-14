@@ -6,12 +6,14 @@ import { RegisterPage } from './components/RegisterPage';
 import { ProfilePage } from './components/ProfilePage';
 import { UploadPage } from './components/UploadPage';
 import { AnalysisResultPage } from './components/AnalysisResultPage';
+import { AdminPage } from './components/AdminPage';
 
 export type User = {
   id: string;
   email: string;
   name: string;
   allergies: string[];
+  role: 'user' | 'admin';
 };
 
 export type AnalysisResult = {
@@ -25,7 +27,7 @@ export type AnalysisResult = {
 const API_BASE_URL = 'http://localhost:8000/api';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'profile' | 'upload' | 'analysis'>('login');
+  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'profile' | 'upload' | 'analysis' | 'admin'>('login');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,7 +35,6 @@ function App() {
   const [allAllergies, setAllAllergies] = useState<{ id: number; name: string }[]>([]);
   const [selectedAllergyIds, setSelectedAllergyIds] = useState<number[]>([]);
 
-  // Загружаем список всех аллергий + профиль при старте
   useEffect(() => {
     const loadAllergiesAndProfile = async () => {
       try {
@@ -65,11 +66,14 @@ function App() {
           .filter(a => data.allergies.includes(a.name))
           .map(a => a.id);
 
+        const userRole = data.role || 'user';
+
         setCurrentUser({
           id: '1',
           email: data.email,
           name: data.name,
-          allergies: data.allergies || []
+          allergies: data.allergies || [],
+          role: userRole 
         });
         setSelectedAllergyIds(ids);
         setCurrentPage('profile');
@@ -95,9 +99,8 @@ function App() {
         const allergiesRes = await fetch(`${API_BASE_URL}/users/allergies/list`);
         const allergies = await allergiesRes.json();
         await fetchProfileWithAllergies(data.access_token, allergies);
-        return null; // всё ок
+        return null;
       } else {
-        // Бэкенд возвращает detail в случае ошибки
         return data.detail || 'Ошибка входа';
       }
     } catch (err) {
@@ -170,7 +173,6 @@ function App() {
 
     const data = await res.json();
     if (res.ok) {
-      // 🔁 Преобразуем snake_case → camelCase
       const normalizedResult: AnalysisResult = {
         productName: data.product_name || "Не определено",
         ingredients: data.ingredients || [],
@@ -209,6 +211,13 @@ function App() {
     );
   }
 
+console.log("Состояние:", {
+  currentPage,
+  currentUser,
+  allAllergies,
+  analysisResult
+});
+
   return (
     <>
       {currentPage === 'upload' && (
@@ -226,6 +235,7 @@ function App() {
           initialAllergyIds={selectedAllergyIds}
           onUpdateAllergies={handleUpdateAllergies}
           onNavigateToUpload={() => setCurrentPage('upload')}
+          onNavigateToAdmin={() => setCurrentPage('admin')} 
           onLogout={handleLogout}
         />
       )}
@@ -237,6 +247,9 @@ function App() {
           onNavigateToProfile={() => setCurrentPage('profile')}
           onLogout={handleLogout}
         />
+      )}
+      {currentPage === 'admin' && currentUser.role === 'admin' && (
+        <AdminPage onLogout={handleLogout} />
       )}
     </>
   );

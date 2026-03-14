@@ -10,3 +10,4 @@ class UserProfileResponse(BaseModel):
     email: str
     name: str 
     allergies: List[str]
+    role: str

@@ -4,15 +4,14 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.models import User
 from app.core.dependencies import get_current_user, get_db
+from app.core.allergens import ALLERGEN_KEYWORDS
 import pytesseract
 from PIL import Image
 import tempfile
 from pathlib import Path
 import re
+
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 router = APIRouter()
 
@@ -25,35 +24,25 @@ async def analyze_image(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    logger.info(f"🔍 Начало анализа изображения. Пользователь: {current_user.email}, файл: {file.filename}")
-
-    # Валидация типа файла
+    # Валидация MIME-типа
     if file.content_type not in SUPPORTED_TYPES:
-        logger.warning(f"❌ Неподдерживаемый MIME-тип: {file.content_type}")
         raise HTTPException(status_code=400, detail="Неподдерживаемый формат изображения")
     
     suffix = Path(file.filename).suffix.lower()
     if suffix not in SUPPORTED_SUFFIXES:
-        logger.warning(f"❌ Неподдерживаемое расширение: {suffix}")
         raise HTTPException(status_code=400, detail="Неподдерживаемое расширение файла")
 
     temp_path = None
     try:
-        # Сохраняем временный файл
+        # Сохраняем во временный файл
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             while chunk := await file.read(1024 * 1024):
                 tmp.write(chunk)
             temp_path = tmp.name
 
-        logger.info(f"💾 Временный файл сохранён: {temp_path}")
-
         # Открываем изображение
         image = Image.open(temp_path)
-        logger.info("🖼️ Изображение открыто успешно")
-
-        # Распознаём текст
         text = pytesseract.image_to_string(image, lang='rus+eng')
-        logger.info(f"🔤 Распознанный текст: {text[:100]}...")  # первые 100 символов
 
         # Извлекаем ингредиенты
         ingredients = []
@@ -61,40 +50,36 @@ async def analyze_image(
         if matches:
             raw = re.split(r'[;,\.]\s*|\s+и\s+', matches[0])
             ingredients = [ing.strip().lower() for ing in raw if ing.strip()]
-            logger.info(f"🥕 Найдены ингредиенты: {ingredients}")
-        else:
-            logger.warning("⚠️ Ингредиенты не найдены в тексте")
 
-        # Получаем аллергии пользователя
-        user_allergies = [a.name.lower() for a in current_user.allergies]
-        logger.info(f"🩺 Аллергии пользователя: {user_allergies}")
+        # Получаем точные названия аллергий пользователя (как в БД)
+        user_allergies = [a.name for a in current_user.allergies]
 
-        # Сравниваем
-        detected = []
-        for allergen in user_allergies:
-            for ing in ingredients:
-                if allergen in ing:
-                    detected.append(allergen)
-        detected = list(set(detected))
-        logger.info(f"❗ Обнаруженные аллергены: {detected}")
+        # Умное сопоставление через словарь ALLERGEN_KEYWORDS
+        detected = set()
+        for ingredient in ingredients:
+            ingredient_lower = ingredient.lower()
+            for allergen_name in user_allergies:
+                # Получаем ключевые слова для аллергена (по точному имени из БД)
+                keywords = ALLERGEN_KEYWORDS.get(allergen_name, [allergen_name.lower()])
+                for kw in keywords:
+                    if kw in ingredient_lower:
+                        detected.add(allergen_name)
+                        break  # найден один аллерген — дальше не проверяем
 
+        detected = list(detected)
         is_safe = len(detected) == 0
-        warnings = [f"⚠️ Найдена аллергия: {a}" for a in detected]
+        warnings = [f"Найдена аллергия: {a}" for a in detected]
 
-        result = {
+        return {
             "product_name": "Не определено",
             "ingredients": ingredients,
             "detected_allergens": detected,
             "is_safe": is_safe,
             "warnings": warnings
         }
-        logger.info("✅ Анализ завершён успешно")
-        return result
 
     except Exception as e:
-        logger.exception(f"💥 КРИТИЧЕСКАЯ ОШИБКА при анализе: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Ошибка анализа: {str(e)}")
+        raise HTTPException(status_code=500, detail="Ошибка анализа изображения")
     finally:
         if temp_path and Path(temp_path).exists():
             Path(temp_path).unlink()
-            logger.info(f"🧹 Временный файл удалён: {temp_path}")

@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
-import { User as UserIcon, Upload, LogOut } from 'lucide-react';
+import { User as UserIcon, Upload, LogOut, Shield } from 'lucide-react';
 import { Badge } from './ui/badge';
 
 type ProfilePageProps = {
@@ -15,6 +15,7 @@ type ProfilePageProps = {
   initialAllergyIds: number[];
   onUpdateAllergies: (allergyIds: number[]) => void;
   onNavigateToUpload: () => void;
+  onNavigateToAdmin: () => void; 
   onLogout: () => void;
 };
 
@@ -24,6 +25,7 @@ export function ProfilePage({
   initialAllergyIds,
   onUpdateAllergies,
   onNavigateToUpload,
+  onNavigateToAdmin, 
   onLogout,
 }: ProfilePageProps) {
   const [selectedIds, setSelectedIds] = useState<number[]>(initialAllergyIds);
@@ -61,6 +63,17 @@ export function ProfilePage({
               <Upload className="h-4 w-4 mr-2" />
               Анализ
             </Button>
+            {user.role === 'admin' && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onNavigateToAdmin}
+                className="text-purple-600 hover:text-purple-800"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Админка
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={onLogout}>
               <LogOut className="h-4 w-4" />
             </Button>
@@ -87,6 +100,9 @@ export function ProfilePage({
               </div>
               <div>
                 <span className="text-neutral-600">Email:</span> {user.email}
+              </div>
+              <div>
+                <span className="text-neutral-600">Роль:</span> {user.role === 'admin' ? 'Администратор' : 'Пользователь'}
               </div>
             </CardContent>
           </Card>

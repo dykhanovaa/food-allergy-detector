@@ -14,7 +14,8 @@ def get_profile(db: Session, user_id: int):
     return UserProfileResponse(
         email=user.email,
         name=user.name,      
-        allergies=allergy_names
+        allergies=allergy_names,
+        role=user.role
     )
 
 def update_profile():
