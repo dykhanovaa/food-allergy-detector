@@ -26,6 +26,13 @@ export type AnalysisResult = {
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
+const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  return fetch(url, {
+    ...options,
+    credentials: 'include',
+  });
+};
+
 function App() {
   const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'profile' | 'upload' | 'analysis' | 'admin'>('login');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -38,28 +45,26 @@ function App() {
   useEffect(() => {
     const loadAllergiesAndProfile = async () => {
       try {
-        const allergiesRes = await fetch(`${API_BASE_URL}/users/allergies/list`);
+        const allergiesRes = await apiFetch(`${API_BASE_URL}/users/allergies/list`);
         if (!allergiesRes.ok) return;
         const allergies = await allergiesRes.json();
         setAllAllergies(allergies);
 
-        const token = localStorage.getItem('access_token');
-        if (token) {
-          await fetchProfileWithAllergies(token, allergies);
-        }
+        // Пытаемся загрузить профиль — бэкенд сам проверит cookies
+        await fetchProfileWithAllergies(allergies);
       } catch (err) {
-        console.error('Ошибка загрузки аллергий или профиля', err);
+        console.error('Ошибка загрузки данных:', err);
+        setCurrentUser(null);
+        setCurrentPage('login');
       }
     };
 
     loadAllergiesAndProfile();
   }, []);
 
-  const fetchProfileWithAllergies = async (token: string, allergyList: { id: number; name: string }[]) => {
+  const fetchProfileWithAllergies = async (allergyList: { id: number; name: string }[]) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/users/profile`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`${API_BASE_URL}/users/profile`);
       if (res.ok) {
         const data = await res.json();
         const ids = allergyList
@@ -78,29 +83,35 @@ function App() {
         setSelectedAllergyIds(ids);
         setCurrentPage('profile');
       } else {
-        localStorage.removeItem('access_token');
+        // Если 401 — перенаправляем на логин
+        if (res.status === 401) {
+          setCurrentUser(null);
+          setCurrentPage('login');
+        }
       }
     } catch (err) {
       console.error(err);
-      localStorage.removeItem('access_token');
+      setCurrentUser(null);
+      setCurrentPage('login');
     }
   };
 
   const handleLogin = async (email: string, password: string): Promise<string | null> => {
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      const res = await apiFetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      const data = await res.json();
+
       if (res.ok) {
-        localStorage.setItem('access_token', data.access_token);
-        const allergiesRes = await fetch(`${API_BASE_URL}/users/allergies/list`);
+        // Куки установлены автоматически — просто загружаем профиль
+        const allergiesRes = await apiFetch(`${API_BASE_URL}/users/allergies/list`);
         const allergies = await allergiesRes.json();
-        await fetchProfileWithAllergies(data.access_token, allergies);
+        await fetchProfileWithAllergies(allergies);
         return null;
       } else {
+        const data = await res.json();
         return data.detail || 'Ошибка входа';
       }
     } catch (err) {
@@ -110,16 +121,17 @@ function App() {
 
   const handleRegister = async (email: string, password: string, name: string): Promise<string | null> => {
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      const res = await apiFetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name })
       });
-      const data = await res.json();
+
       if (res.ok) {
         await handleLogin(email, password);
         return null;
       } else {
+        const data = await res.json();
         return data.detail || 'Ошибка регистрации';
       }
     } catch (err) {
@@ -127,31 +139,30 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    setCurrentUser(null);
-    setCurrentPage('login');
+  const handleLogout = async () => {
+    try {
+      await apiFetch(`${API_BASE_URL}/auth/logout`, { method: 'POST' });
+    } catch (err) {
+      console.error('Ошибка при выходе:', err);
+    } finally {
+      setCurrentUser(null);
+      setCurrentPage('login');
+    }
   };
 
   const handleUpdateAllergies = async (allergyIds: number[]) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
-
-      const res = await fetch(`${API_BASE_URL}/users/allergies`, {
+      const res = await apiFetch(`${API_BASE_URL}/users/allergies`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ allergy_ids: allergyIds })
       });
 
       if (res.ok) {
-        const allergiesRes = await fetch(`${API_BASE_URL}/users/allergies/list`);
+        const allergiesRes = await apiFetch(`${API_BASE_URL}/users/allergies/list`);
         const allergies = await allergiesRes.json();
-        await fetchProfileWithAllergies(token, allergies);
+        await fetchProfileWithAllergies(allergies);
       }
     } catch (err) {
       console.error(err);
@@ -161,13 +172,11 @@ function App() {
   };
 
   const handleAnalyze = async (imageFile: File) => {
-    const token = localStorage.getItem('access_token');
     const formData = new FormData();
     formData.append('file', imageFile);
 
-    const res = await fetch('http://localhost:8000/api/scans/analyze', {
+    const res = await apiFetch(`${API_BASE_URL}/scans/analyze`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
       body: formData
     });
 
@@ -183,7 +192,12 @@ function App() {
       setAnalysisResult(normalizedResult);
       setCurrentPage('analysis');
     } else {
-      setError(data.detail || 'Ошибка анализа');
+      if (res.status === 401) {
+        setCurrentUser(null);
+        setCurrentPage('login');
+      } else {
+        setError(data.detail || 'Ошибка анализа');
+      }
     }
   };
 
@@ -210,13 +224,6 @@ function App() {
       </>
     );
   }
-
-console.log("Состояние:", {
-  currentPage,
-  currentUser,
-  allAllergies,
-  analysisResult
-});
 
   return (
     <>

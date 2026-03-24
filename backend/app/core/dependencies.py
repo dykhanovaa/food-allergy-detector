@@ -1,13 +1,14 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  
+# backend/app/core/dependencies.py
+
+from fastapi import Depends, HTTPException, status, Request
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.db.models import User
 from app.db.database import SessionLocal
+from app.db.repository.user_repo import UserRepository
 from app.core.config import settings
 
-bearer_scheme = HTTPBearer()
 
 def get_db():
     db = SessionLocal()
@@ -16,29 +17,39 @@ def get_db():
     finally:
         db.close()
 
+
 def get_current_user(
-    db: Session = Depends(get_db),
-    token_data: HTTPAuthorizationCredentials = Depends(bearer_scheme)
+    request: Request,
+    db: Session = Depends(get_db)
 ):
-    print("SECRET_KEY при ПРОВЕРКЕ токена:", settings.SECRET_KEY) 
-    print("Получен токен:", token_data.credentials) 
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Токен не найден",
+        )
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
     try:
-        token = token_data.credentials
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "access":
+            raise credentials_exception
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.email == email).first()
+    user_repo = UserRepository(db)
+    user = user_repo.get_by_email(email)
     if user is None:
         raise credentials_exception
+
     return user
 
 

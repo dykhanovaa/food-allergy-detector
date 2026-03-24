@@ -1,10 +1,7 @@
-# app/db/models.py
-
-from sqlalchemy import Column, Integer, String, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, DateTime
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 
-# Таблица связи многие-ко-многим
 user_allergies = Table(
     "user_allergies",
     Base.metadata,
@@ -23,11 +20,13 @@ class User(Base):
     # Связь с аллергиями
     allergies = relationship("Allergy", secondary=user_allergies, back_populates="users")
 
+    refresh_token = Column(String, nullable=True)
+    refresh_token_expires = Column(DateTime, nullable=True)
+
 class Allergy(Base):
     __tablename__ = "allergies"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
 
-    # Обратная связь
     users = relationship("User", secondary=user_allergies, back_populates="allergies")
