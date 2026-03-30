@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, DateTime, Text, Boolean
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from app.db.database import Base
 
 user_allergies = Table(
@@ -30,3 +31,14 @@ class Allergy(Base):
     name = Column(String, unique=True, index=True)
 
     users = relationship("User", secondary=user_allergies, back_populates="allergies")
+
+class Scan(Base):
+    __tablename__ = "scans"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    image_url = Column(String, nullable=False)
+    product_name = Column(String, nullable=True)
+    ingredients = Column(Text, nullable=True)
+    detected_allergens = Column(Text, nullable=True)  # JSON строка
+    is_safe = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

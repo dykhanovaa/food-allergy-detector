@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
-import { User as UserIcon, Upload, LogOut, Shield } from 'lucide-react';
+import { User as UserIcon, Upload, LogOut, Shield, FileText } from 'lucide-react'; // ← добавлен FileText
 import { Badge } from './ui/badge';
 
 type ProfilePageProps = {
@@ -17,6 +17,7 @@ type ProfilePageProps = {
   onNavigateToUpload: () => void;
   onNavigateToAdmin: () => void; 
   onLogout: () => void;
+  onNavigateToScans: () => void; // ← добавлен пропс
 };
 
 export function ProfilePage({
@@ -27,6 +28,7 @@ export function ProfilePage({
   onNavigateToUpload,
   onNavigateToAdmin, 
   onLogout,
+  onNavigateToScans, // ← деструктуризация
 }: ProfilePageProps) {
   const [selectedIds, setSelectedIds] = useState<number[]>(initialAllergyIds);
 
@@ -62,6 +64,11 @@ export function ProfilePage({
             <Button variant="ghost" size="sm" onClick={onNavigateToUpload}>
               <Upload className="h-4 w-4 mr-2" />
               Анализ
+            </Button>
+            {/* 🔑 Кнопка "Мои сканы" */}
+            <Button variant="ghost" size="sm" onClick={onNavigateToScans}>
+              <FileText className="h-4 w-4 mr-2" />
+              Мои сканы
             </Button>
             {user.role === 'admin' && (
               <Button 

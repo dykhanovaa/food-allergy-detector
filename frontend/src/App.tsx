@@ -7,6 +7,7 @@ import { ProfilePage } from './components/ProfilePage';
 import { UploadPage } from './components/UploadPage';
 import { AnalysisResultPage } from './components/AnalysisResultPage';
 import { AdminPage } from './components/AdminPage';
+import { ScanList } from './components/ScanList'; // ← импортирован
 
 export type User = {
   id: string;
@@ -34,7 +35,11 @@ const apiFetch = async (url: string, options: RequestInit = {}): Promise<Respons
 };
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'profile' | 'upload' | 'analysis' | 'admin'>('login');
+  // 🔑 Добавлен 'scans' в тип состояния
+  const [currentPage, setCurrentPage] = useState<
+    'login' | 'register' | 'profile' | 'upload' | 'analysis' | 'admin' | 'scans'
+  >('login');
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,8 +54,6 @@ function App() {
         if (!allergiesRes.ok) return;
         const allergies = await allergiesRes.json();
         setAllAllergies(allergies);
-
-        // Пытаемся загрузить профиль — бэкенд сам проверит cookies
         await fetchProfileWithAllergies(allergies);
       } catch (err) {
         console.error('Ошибка загрузки данных:', err);
@@ -58,7 +61,6 @@ function App() {
         setCurrentPage('login');
       }
     };
-
     loadAllergiesAndProfile();
   }, []);
 
@@ -70,9 +72,7 @@ function App() {
         const ids = allergyList
           .filter(a => data.allergies.includes(a.name))
           .map(a => a.id);
-
         const userRole = data.role || 'user';
-
         setCurrentUser({
           id: '1',
           email: data.email,
@@ -83,7 +83,6 @@ function App() {
         setSelectedAllergyIds(ids);
         setCurrentPage('profile');
       } else {
-        // Если 401 — перенаправляем на логин
         if (res.status === 401) {
           setCurrentUser(null);
           setCurrentPage('login');
@@ -103,9 +102,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-
       if (res.ok) {
-        // Куки установлены автоматически — просто загружаем профиль
         const allergiesRes = await apiFetch(`${API_BASE_URL}/users/allergies/list`);
         const allergies = await allergiesRes.json();
         await fetchProfileWithAllergies(allergies);
@@ -126,7 +123,6 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name })
       });
-
       if (res.ok) {
         await handleLogin(email, password);
         return null;
@@ -158,7 +154,6 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ allergy_ids: allergyIds })
       });
-
       if (res.ok) {
         const allergiesRes = await apiFetch(`${API_BASE_URL}/users/allergies/list`);
         const allergies = await allergiesRes.json();
@@ -174,12 +169,10 @@ function App() {
   const handleAnalyze = async (imageFile: File) => {
     const formData = new FormData();
     formData.append('file', imageFile);
-
     const res = await apiFetch(`${API_BASE_URL}/scans/analyze`, {
       method: 'POST',
       body: formData
     });
-
     const data = await res.json();
     if (res.ok) {
       const normalizedResult: AnalysisResult = {
@@ -242,7 +235,8 @@ function App() {
           initialAllergyIds={selectedAllergyIds}
           onUpdateAllergies={handleUpdateAllergies}
           onNavigateToUpload={() => setCurrentPage('upload')}
-          onNavigateToAdmin={() => setCurrentPage('admin')} 
+          onNavigateToAdmin={() => setCurrentPage('admin')}
+          onNavigateToScans={() => setCurrentPage('scans')} 
           onLogout={handleLogout}
         />
       )}
@@ -257,6 +251,13 @@ function App() {
       )}
       {currentPage === 'admin' && currentUser.role === 'admin' && (
         <AdminPage onLogout={handleLogout} />
+      )}
+      {/* 🔑 Новый маршрут */}
+      {currentPage === 'scans' && (
+        <ScanList
+          onLogout={handleLogout}
+          onNavigateToProfile={() => setCurrentPage('profile')}
+        />
       )}
     </>
   );
