@@ -214,6 +214,7 @@ export const ScanList = ({
                       <img
                         src={scan.image_url}
                         alt="Этикетка"
+                        loading='lazy'
                         className="w-20 h-20 object-cover rounded border border-gray-200"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
                       />

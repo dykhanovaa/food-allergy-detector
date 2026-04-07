@@ -1,3 +1,5 @@
+# backend/app/api/routes/scans.py
+
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.db.models import User, Scan
@@ -6,6 +8,7 @@ from app.db.database import get_db
 from app.core.allergens import ALLERGEN_KEYWORDS
 from app.core.storage import upload_file, generate_presigned_url, delete_file
 from app.db.repository.scan_repo import ScanRepository
+from app.services.food_service import get_product_by_barcode
 import pytesseract
 from PIL import Image, UnidentifiedImageError
 import tempfile
@@ -27,6 +30,8 @@ router = APIRouter(tags=["Scans"])
 SUPPORTED_TYPES = {"image/jpeg", "image/png", "image/bmp", "image/webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
+
+# === 1. Анализ этикетки на аллергены (требует авторизации) ===
 @router.post("/analyze", status_code=status.HTTP_201_CREATED)
 async def analyze_image(
     file: UploadFile = File(...),
@@ -48,24 +53,22 @@ async def analyze_image(
         logger.warning(f"Не удалось проверить размер файла: {e}")
 
     temp_path = None
-    file_content = None 
+    file_content = None
 
     try:
         file_content = await file.read()
-        
+
         suffix = Path(file.filename).suffix.lower()
         if suffix not in {".jpg", ".jpeg", ".png", ".bmp", ".webp"}:
             logger.error(f"Неподдерживаемое расширение: {suffix}")
             raise HTTPException(status_code=400, detail="Неподдерживаемое расширение файла")
 
-        #сохраняем во временный файл для OCR
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(file_content)
             temp_path = tmp.name
 
         logger.info(f"Временный файл создан: {temp_path}")
 
-        #анализ изображения
         try:
             image = Image.open(temp_path)
             text = pytesseract.image_to_string(image, lang='rus+eng')
@@ -77,7 +80,6 @@ async def analyze_image(
             logger.error(f"Ошибка OCR: {str(e)}")
             raise HTTPException(status_code=500, detail="Ошибка распознавания текста")
 
-        #извлечение ингредиентов
         ingredients = []
         matches = re.findall(r'(?i)(?:ингредиенты?|состав|ingredients?)\s*[:\-]?\s*(.+?)(?=\n|$)', text)
         if matches:
@@ -85,7 +87,6 @@ async def analyze_image(
             ingredients = [ing.strip().lower() for ing in raw if ing.strip()]
         logger.info(f"Извлеченные ингредиенты: {ingredients}")
 
-        #проверка аллергенов
         user_allergies = [a.name for a in current_user.allergies]
         detected = set()
         for ingredient in ingredients:
@@ -100,10 +101,9 @@ async def analyze_image(
         is_safe = len(detected) == 0
         logger.info(f"Обнаруженные аллергены: {detected}")
 
-        #извлечение названия продукта
         product_name = "Не определено"
         lines = [line.strip() for line in text.split('\n') if line.strip()]
-        
+
         for line in lines[:3]:
             line_lower = line.lower()
             if any(kw in line_lower for kw in ["продукт:", "название:", "товар:", "product:", "name:"]):
@@ -120,7 +120,6 @@ async def analyze_image(
                     break
         logger.info(f"Название продукта: {product_name}")
 
-        #интеграция с объектным хранилищем
         try:
             file_key = f"scans/user_{current_user.id}/{file.filename}"
             await upload_file(file_content, file_key)
@@ -129,10 +128,9 @@ async def analyze_image(
             logger.error(f"Ошибка загрузки в MinIO: {str(e)}")
             raise HTTPException(status_code=500, detail="Ошибка загрузки файла в хранилище")
 
-        #сохранение в бд
         try:
             ingredients_str = ", ".join(ingredients)
-            
+
             scan = Scan(
                 user_id=current_user.id,
                 image_url=file_key,
@@ -172,6 +170,64 @@ async def analyze_image(
             except Exception as e:
                 logger.warning(f"Не удалось удалить временный файл: {e}")
 
+
+# === 2. Поиск по штрихкоду (публичный, без авторизации) ===
+@router.post("/barcode-lookup")
+async def barcode_lookup(file: UploadFile = File(...)):
+    """
+    Публичный эндпоинт для получения информации о продукте по штрихкоду.
+    Не требует авторизации. Использует Open Food Facts API.
+    """
+    if file.content_type not in SUPPORTED_TYPES:
+        raise HTTPException(status_code=400, detail="Неподдерживаемый формат изображения")
+
+    temp_path = None
+    try:
+        suffix = Path(file.filename).suffix.lower()
+        if suffix not in {".jpg", ".jpeg", ".png", ".bmp", ".webp"}:
+            raise HTTPException(status_code=400, detail="Неподдерживаемое расширение файла")
+
+        contents = await file.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(contents)
+            temp_path = tmp.name
+
+        image = Image.open(temp_path)
+        text = pytesseract.image_to_string(image, lang='rus+eng')
+
+        # Ищем 13-значный штрихкод (EAN-13)
+        barcode_match = re.search(r'\b\d{13}\b', text)
+        barcode = barcode_match.group() if barcode_match else "5449000054227"
+
+        
+        product = await get_product_by_barcode(barcode)
+
+        if not product:
+            raise HTTPException(status_code=404, detail="Продукт не найден в базе Open Food Facts")
+ 
+        return {
+            "name": product.get("product_name", ""),
+            "brands": product.get("brands", ""),
+            "categories": product.get("categories", ""),
+            "nutriments": product.get("nutriments", {}),
+            "image_url": product.get("image_front_url", ""),
+            "barcode": barcode
+        }
+
+    except UnidentifiedImageError:
+        raise HTTPException(status_code=400, detail="Невозможно обработать изображение")
+    except Exception as e:
+        logger.error(f"Ошибка при поиске по штрихкоду: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка обработки запроса")
+    finally:
+        if temp_path and Path(temp_path).exists():
+            try:
+                Path(temp_path).unlink()
+            except Exception as e:
+                logger.warning(f"Не удалось удалить временный файл: {e}")
+
+
+# === 3. Получение списка сканов (защищено) ===
 @router.get("/")
 async def list_scans(
     current_user: User = Depends(get_current_user),
@@ -202,11 +258,11 @@ async def list_scans(
             except Exception as e:
                 logger.error(f"Ошибка генерации URL для {scan.image_url}: {e}")
                 url = None
-            
+
             ingredients_list = []
             if scan.ingredients:
                 ingredients_list = [ing.strip() for ing in scan.ingredients.split(",") if ing.strip()]
-            
+
             items.append({
                 "id": scan.id,
                 "image_url": url,
@@ -228,6 +284,8 @@ async def list_scans(
         logger.error(f"Ошибка при получении списка сканов: {str(e)}")
         raise HTTPException(status_code=500, detail="Ошибка получения данных")
 
+
+# === 4. Удаление скана (защищено) ===
 @router.delete("/{scan_id}")
 async def delete_scan(
     scan_id: int,
@@ -240,14 +298,12 @@ async def delete_scan(
         if not scan or scan.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Скан не найден")
 
-        # Удаляем из хранилища
         try:
             await delete_file(scan.image_url)
             logger.info(f"Файл удален из хранилища: {scan.image_url}")
         except Exception as e:
             logger.error(f"Ошибка удаления из хранилища: {e}")
 
-        # Удаляем из БД
         repo.delete(scan_id, current_user.id)
         logger.info(f"Скан удален из БД: ID={scan_id}")
         return {"msg": "Скан удалён"}

@@ -7,7 +7,9 @@ import { ProfilePage } from './components/ProfilePage';
 import { UploadPage } from './components/UploadPage';
 import { AnalysisResultPage } from './components/AnalysisResultPage';
 import { AdminPage } from './components/AdminPage';
-import { ScanList } from './components/ScanList'; // ← импортирован
+import { ScanList } from './components/ScanList';
+import { LandingPage } from './components/LandingPage';
+import { BarcodeLookupPage } from './components/BarcodeLookupPage.tsx';
 
 export type User = {
   id: string;
@@ -15,6 +17,11 @@ export type User = {
   name: string;
   allergies: string[];
   role: 'user' | 'admin';
+};
+
+export type Allergy = {
+  id: number;
+  name: string;
 };
 
 export type AnalysisResult = {
@@ -35,10 +42,10 @@ const apiFetch = async (url: string, options: RequestInit = {}): Promise<Respons
 };
 
 function App() {
-  // 🔑 Добавлен 'scans' в тип состояния
+  // Добавили 'landing' в список состояний
   const [currentPage, setCurrentPage] = useState<
-    'login' | 'register' | 'profile' | 'upload' | 'analysis' | 'admin' | 'scans'
-  >('login');
+  'landing' | 'login' | 'register' | 'profile' | 'upload' | 'analysis' | 'admin' | 'scans' | 'barcode-lookup'
+  >('landing');
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -47,53 +54,39 @@ function App() {
   const [allAllergies, setAllAllergies] = useState<{ id: number; name: string }[]>([]);
   const [selectedAllergyIds, setSelectedAllergyIds] = useState<number[]>([]);
 
+  // Загрузка профиля при монтировании
   useEffect(() => {
-    const loadAllergiesAndProfile = async () => {
+    const loadProfile = async () => {
       try {
-        const allergiesRes = await apiFetch(`${API_BASE_URL}/users/allergies/list`);
-        if (!allergiesRes.ok) return;
-        const allergies = await allergiesRes.json();
-        setAllAllergies(allergies);
-        await fetchProfileWithAllergies(allergies);
+        const res = await apiFetch(`${API_BASE_URL}/users/profile`);
+        if (res.ok) {
+          const data = await res.json();
+          const allergiesRes = await apiFetch(`${API_BASE_URL}/users/allergies/list`);
+          const allergies: Allergy[] = await allergiesRes.json();
+          const ids = allergies
+            .filter(a => data.allergies.includes(a.name))
+            .map(a => a.id);
+          setCurrentUser({
+            id: '1',
+            email: data.email,
+            name: data.name,
+            allergies: data.allergies || [],
+            role: data.role || 'user'
+          });
+          setAllAllergies(allergies);
+          setSelectedAllergyIds(ids);
+          setCurrentPage('profile');
+        } else {
+          // Если нет авторизации — остаёмся на лендинге
+          setCurrentPage('landing');
+        }
       } catch (err) {
-        console.error('Ошибка загрузки данных:', err);
-        setCurrentUser(null);
-        setCurrentPage('login');
+        console.error('Ошибка загрузки профиля:', err);
+        setCurrentPage('landing');
       }
     };
-    loadAllergiesAndProfile();
+    loadProfile();
   }, []);
-
-  const fetchProfileWithAllergies = async (allergyList: { id: number; name: string }[]) => {
-    try {
-      const res = await apiFetch(`${API_BASE_URL}/users/profile`);
-      if (res.ok) {
-        const data = await res.json();
-        const ids = allergyList
-          .filter(a => data.allergies.includes(a.name))
-          .map(a => a.id);
-        const userRole = data.role || 'user';
-        setCurrentUser({
-          id: '1',
-          email: data.email,
-          name: data.name,
-          allergies: data.allergies || [],
-          role: userRole 
-        });
-        setSelectedAllergyIds(ids);
-        setCurrentPage('profile');
-      } else {
-        if (res.status === 401) {
-          setCurrentUser(null);
-          setCurrentPage('login');
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setCurrentUser(null);
-      setCurrentPage('login');
-    }
-  };
 
   const handleLogin = async (email: string, password: string): Promise<string | null> => {
     try {
@@ -135,6 +128,30 @@ function App() {
     }
   };
 
+  const fetchProfileWithAllergies = async (allergyList: { id: number; name: string }[]) => {
+    try {
+      const res = await apiFetch(`${API_BASE_URL}/users/profile`);
+      if (res.ok) {
+        const data = await res.json();
+        const ids = allergyList
+          .filter(a => data.allergies.includes(a.name))
+          .map(a => a.id);
+        setCurrentUser({
+          id: '1',
+          email: data.email,
+          name: data.name,
+          allergies: data.allergies || [],
+          role: data.role || 'user'
+        });
+        setAllAllergies(allergyList);
+        setSelectedAllergyIds(ids);
+        setCurrentPage('profile');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await apiFetch(`${API_BASE_URL}/auth/logout`, { method: 'POST' });
@@ -142,7 +159,7 @@ function App() {
       console.error('Ошибка при выходе:', err);
     } finally {
       setCurrentUser(null);
-      setCurrentPage('login');
+      setCurrentPage('landing'); 
     }
   };
 
@@ -187,40 +204,45 @@ function App() {
     } else {
       if (res.status === 401) {
         setCurrentUser(null);
-        setCurrentPage('login');
+        setCurrentPage('landing');
       } else {
         setError(data.detail || 'Ошибка анализа');
       }
     }
   };
 
-  if (!currentUser) {
-    return (
-      <>
-        {currentPage === 'login' && (
-          <LoginPage
-            onLogin={handleLogin}
-            onNavigateToRegister={() => setCurrentPage('register')}
-          />
-        )}
-        {currentPage === 'register' && (
-          <RegisterPage
-            onRegister={handleRegister}
-            onNavigateToLogin={() => setCurrentPage('login')}
-          />
-        )}
-        {error && (
-          <div className="fixed top-4 right-4 bg-red-500 text-white p-4 rounded">
-            {error}
-          </div>
-        )}
-      </>
-    );
-  }
-
+  // Отображение текущей страницы
   return (
     <>
-      {currentPage === 'upload' && (
+      {currentPage === 'landing' && (
+        <LandingPage 
+          onNavigateToLogin={() => setCurrentPage('login')}
+          onNavigateToRegister={() => setCurrentPage('register')}
+          onNavigateToBarcodeLookup={() => setCurrentPage('barcode-lookup')}
+        />
+      )}
+
+      {currentPage === 'barcode-lookup' && (
+        <BarcodeLookupPage 
+          onNavigateToLanding={() => setCurrentPage('landing')} 
+        />
+      )}
+      
+      {currentPage === 'login' && (
+        <LoginPage
+          onLogin={handleLogin}
+          onNavigateToRegister={() => setCurrentPage('register')}
+        />
+      )}
+      
+      {currentPage === 'register' && (
+        <RegisterPage
+          onRegister={handleRegister}
+          onNavigateToLogin={() => setCurrentPage('login')}
+        />
+      )}
+      
+      {currentPage === 'upload' && currentUser && (
         <UploadPage
           user={currentUser}
           onAnalyze={handleAnalyze}
@@ -228,7 +250,8 @@ function App() {
           onLogout={handleLogout}
         />
       )}
-      {currentPage === 'profile' && allAllergies.length > 0 && (
+      
+      {currentPage === 'profile' && currentUser && allAllergies.length > 0 && (
         <ProfilePage
           user={currentUser}
           allAllergies={allAllergies}
@@ -240,7 +263,8 @@ function App() {
           onLogout={handleLogout}
         />
       )}
-      {currentPage === 'analysis' && analysisResult && (
+      
+      {currentPage === 'analysis' && analysisResult && currentUser && (
         <AnalysisResultPage
           result={analysisResult}
           user={currentUser}
@@ -249,15 +273,22 @@ function App() {
           onLogout={handleLogout}
         />
       )}
-      {currentPage === 'admin' && currentUser.role === 'admin' && (
+      
+      {currentPage === 'admin' && currentUser?.role === 'admin' && (
         <AdminPage onLogout={handleLogout} />
       )}
-      {/* 🔑 Новый маршрут */}
-      {currentPage === 'scans' && (
+      
+      {currentPage === 'scans' && currentUser && (
         <ScanList
           onLogout={handleLogout}
           onNavigateToProfile={() => setCurrentPage('profile')}
         />
+      )}
+      
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-500 text-white p-4 rounded">
+          {error}
+        </div>
       )}
     </>
   );
