@@ -1,8 +1,6 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, asc, desc
+from sqlalchemy import asc, desc
 from app.db.models import Scan
-from typing import List, Optional
-from sqlalchemy import func
 
 class ScanRepository:
     def __init__(self, db: Session):

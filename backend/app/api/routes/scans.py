@@ -1,6 +1,6 @@
 # backend/app/api/routes/scans.py
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, status, Request
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.db.models import User, Scan
 from app.core.dependencies import get_current_user

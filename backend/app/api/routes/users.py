@@ -1,6 +1,6 @@
 # app/api/routes/users.py
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user, get_db
 from app.controllers import user_controller

@@ -1,12 +1,11 @@
 # backend/app/core/dependencies.py
 
 from fastapi import Depends, HTTPException, status, Request
-from jose import JWTError, jwt
+from jose import jwt
 from sqlalchemy.orm import Session
 
 from app.db.models import User
 from app.db.database import SessionLocal
-from app.db.repository.user_repo import UserRepository
 from app.core.config import settings
 
 
