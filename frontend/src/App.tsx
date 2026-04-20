@@ -10,6 +10,7 @@ import { AdminPage } from './components/AdminPage';
 import { ScanList } from './components/ScanList';
 import { LandingPage } from './components/LandingPage';
 import { BarcodeLookupPage } from './components/BarcodeLookupPage.tsx';
+import { API_BASE_URL } from './config';
 
 export type User = {
   id: string;
@@ -31,8 +32,6 @@ export type AnalysisResult = {
   isSafe: boolean;
   warnings: string[];
 };
-
-const API_BASE_URL = 'http://localhost:8000/api';
 
 const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
   return fetch(url, {

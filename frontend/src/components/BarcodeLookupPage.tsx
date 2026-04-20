@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { SeoMeta } from './SeoMeta';
+import { API_BASE_URL, SITE_URL } from '../config';
 
 type ProductInfo = {
   name: string;
@@ -37,7 +38,7 @@ export const BarcodeLookupPage = ({ onNavigateToLanding }: BarcodeLookupPageProp
     setProduct(null);
 
     try {
-      const res = await fetch('http://localhost:8000/api/scans/barcode-lookup', {
+      const res = await fetch(`${API_BASE_URL}/scans/barcode-lookup`, {
         method: 'POST',
         body: formData,
       });
@@ -61,7 +62,7 @@ export const BarcodeLookupPage = ({ onNavigateToLanding }: BarcodeLookupPageProp
       <SeoMeta
         title="Поиск продукта по штрихкоду | Food Allergy Detector"
         description="Загрузите фото этикетки — приложение найдет информацию о продукте в Open Food Facts."
-        canonical="http://localhost:5173/barcode-lookup"
+        canonical={`${SITE_URL}/barcode-lookup`}
       />
 
       <div className="min-h-screen bg-gray-50 p-6 max-w-2xl mx-auto">

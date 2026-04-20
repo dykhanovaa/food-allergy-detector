@@ -1,4 +1,5 @@
 import io
+import os
 import sys
 from pathlib import Path
 from typing import Callable, Generator
@@ -12,6 +13,8 @@ from sqlalchemy.orm import Session, sessionmaker
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
+
+os.environ.setdefault("APP_ENV", "test")
 
 from app.core.security import get_password_hash
 from app.core.dependencies import get_db as dependency_get_db

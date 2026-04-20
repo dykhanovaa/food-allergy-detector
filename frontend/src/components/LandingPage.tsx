@@ -1,6 +1,7 @@
 // frontend/src/components/LandingPage.tsx
 
 import { SeoMeta } from './SeoMeta';
+import { SITE_URL } from '../config';
 
 type LandingPageProps = {
   onNavigateToLogin: () => void;
@@ -14,7 +15,7 @@ export const LandingPage = ({ onNavigateToLogin, onNavigateToRegister, onNavigat
     "@type": "WebApplication",
     "name": "Food Allergy Detector",
     "description": "Приложение для анализа этикеток продуктов на аллергены",
-    "url": "http://localhost:5173/",
+    "url": `${SITE_URL}/`,
     "applicationCategory": "HealthApplication"
   };
 
@@ -23,7 +24,7 @@ export const LandingPage = ({ onNavigateToLogin, onNavigateToRegister, onNavigat
       <SeoMeta 
         title="Food Allergy Detector — Проверка продуктов на аллергены"
         description="Бесплатное приложение для анализа этикеток продуктов. Сканируйте упаковку — мы мгновенно проверим состав на наличие ваших аллергенов."
-        canonical="http://localhost:5173/"
+        canonical={`${SITE_URL}/`}
         jsonLd={jsonLd}
       />
 

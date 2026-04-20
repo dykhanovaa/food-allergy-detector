@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Shield, User as UserIcon, LogOut } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
+import { API_BASE_URL } from '../config';
 
 type User = {
   id: number;
@@ -23,8 +24,6 @@ export function AdminPage({ onLogout }: AdminPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
-
-  const API_BASE_URL = 'http://localhost:8000/api';
 
   useEffect(() => {
     const fetchUsers = async () => {

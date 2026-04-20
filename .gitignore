@@ -22,6 +22,9 @@ var/
 venv/
 ENV/
 .env
+.env.*
+!.env.example
+!.env.*.example
 .venv
 
 # === Database ===
@@ -41,6 +44,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .DS_Store
+frontend/dist/
+playwright-report/
+test-results/
 
 # === Vite ===
 .vite/
