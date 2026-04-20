@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user, get_db
 from app.controllers import user_controller
 from app.api.models.user_models import AllergyIdList
+from app.db.models import Allergy
 router = APIRouter()
 
 @router.get("/profile")
@@ -29,7 +30,6 @@ def add_allergy(
 
 @router.post("/init-allergies", include_in_schema=True)
 def init_allergies(db: Session = Depends(get_db)):
-    from app.db.models import Allergy
     ALLERGIES = [
         "Арахис", "Орехи", "Молоко", "Яйца", "Рыба", "Морепродукты", "Соя",
         "Пшеница (глютен)", "Кунжут", "Горчица", "Сельдерей", "Люпин", "Моллюски", "Сульфиты"
