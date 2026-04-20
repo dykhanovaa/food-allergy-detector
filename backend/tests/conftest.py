@@ -1,15 +1,9 @@
+# ruff: noqa: E402
 import io
 import os
 import sys
 from pathlib import Path
 from typing import Callable, Generator
-
-
-from app.core.security import get_password_hash
-from app.core.dependencies import get_db as dependency_get_db
-from app.db.database import Base, get_db
-from app.db.models import Allergy, Scan, User
-from app.main import app
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,6 +16,12 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 os.environ.setdefault("APP_ENV", "test")
+
+from app.core.security import get_password_hash
+from app.core.dependencies import get_db as dependency_get_db
+from app.db.database import Base, get_db
+from app.db.models import Allergy, Scan, User
+from app.main import app
 
 
 @pytest.fixture(scope="session")
