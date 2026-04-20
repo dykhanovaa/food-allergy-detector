@@ -1,4 +1,5 @@
 # ruff: noqa: E402
+
 import io
 import os
 import sys

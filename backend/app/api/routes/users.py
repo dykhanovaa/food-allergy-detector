@@ -5,8 +5,6 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user, get_db
 from app.controllers import user_controller
 from app.api.models.user_models import AllergyIdList
-from app.db.models import Allergy
-
 router = APIRouter()
 
 @router.get("/profile")
