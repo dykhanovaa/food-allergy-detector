@@ -1,6 +1,6 @@
 # backend/app/api/routes/scans.py
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, status
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, status, Request
 from sqlalchemy.orm import Session
 from app.db.models import User, Scan
 from app.core.dependencies import get_current_user
@@ -87,7 +87,8 @@ async def analyze_image(
             ingredients = [ing.strip().lower() for ing in raw if ing.strip()]
         logger.info(f"Извлеченные ингредиенты: {ingredients}")
 
-        user_allergies = [a.name for a in current_user.allergies]
+        # ✅ ИСПРАВЛЕНИЕ: безопасное получение списка аллергий
+        user_allergies = [a.name for a in (current_user.allergies or [])]
         detected = set()
         for ingredient in ingredients:
             ingredient_lower = ingredient.lower()
@@ -199,7 +200,6 @@ async def barcode_lookup(file: UploadFile = File(...)):
         barcode_match = re.search(r'\b\d{13}\b', text)
         barcode = barcode_match.group() if barcode_match else "5449000054227"
 
-        
         product = await get_product_by_barcode(barcode)
 
         if not product:
@@ -214,6 +214,8 @@ async def barcode_lookup(file: UploadFile = File(...)):
             "barcode": barcode
         }
 
+    except HTTPException:
+        raise
     except UnidentifiedImageError:
         raise HTTPException(status_code=400, detail="Невозможно обработать изображение")
     except Exception as e:

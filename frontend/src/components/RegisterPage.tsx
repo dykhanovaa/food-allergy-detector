@@ -1,18 +1,17 @@
-// frontend/src/components/RegisterPage.tsx
-
 import { useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
-import { AlertCircle } from 'lucide-react';
 
 type RegisterPageProps = {
   onRegister: (email: string, password: string, name: string) => Promise<string | null>;
   onNavigateToLogin: () => void;
+  onNavigateToProfile: () => void;
 };
 
-export function RegisterPage({ onRegister, onNavigateToLogin }: RegisterPageProps) {
+export function RegisterPage({ onRegister, onNavigateToLogin, onNavigateToProfile }: RegisterPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -25,6 +24,8 @@ export function RegisterPage({ onRegister, onNavigateToLogin }: RegisterPageProp
       const errorMsg = await onRegister(email, password, name);
       if (errorMsg) {
         setError(errorMsg);
+      } else {
+        onNavigateToProfile();
       }
     }
   };
@@ -38,7 +39,7 @@ export function RegisterPage({ onRegister, onNavigateToLogin }: RegisterPageProp
           </div>
           <CardTitle className="text-center">Регистрация</CardTitle>
           <CardDescription className="text-center">
-            Создайте аккаунт для отслеживания аллергий
+            Создайте аккаунт для отслеживания аллергенов
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -51,12 +52,12 @@ export function RegisterPage({ onRegister, onNavigateToLogin }: RegisterPageProp
                   borderColor: '#fecaca',
                   padding: '0.75rem',
                   borderRadius: '0.375rem',
-                  fontSize: '0.875rem'
+                  fontSize: '0.875rem',
                 }}
               >
                 {error}
               </div>
-                        )}
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Имя</Label>
               <Input

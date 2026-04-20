@@ -1,3 +1,5 @@
+#backend\app\api\routes\auth.py
+
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Response, Request
 from sqlalchemy.orm import Session
 from app.db.database import get_db
@@ -125,3 +127,4 @@ def logout(
     response.delete_cookie("refresh_token")
 
     return {"msg": "Выход выполнен"}
+

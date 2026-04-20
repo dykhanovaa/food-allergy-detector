@@ -49,14 +49,24 @@
             "vaul": "^1.1.2"
       },
       "devDependencies": {
+            "@playwright/test": "^1.59.1",
+            "@testing-library/jest-dom": "^6.9.1",
+            "@testing-library/react": "^16.3.2",
             "@types/node": "^20.10.0",
             "@types/react": "^19.2.4",
             "@types/react-dom": "^19.2.3",
             "@vitejs/plugin-react-swc": "^3.10.2",
-            "vite": "^6.4.1"
+            "jsdom": "^29.0.2",
+            "vite": "^6.4.1",
+            "vitest": "^4.1.4"
       },
       "scripts": {
-            "dev": "vite",
-            "build": "vite build"
-      }
+      "dev": "vite",
+      "build": "vite build",
+      "test": "vitest",
+      "test:run": "vitest run",
+      "test:unit": "vitest run",
+      "test:e2e": "playwright test",
+      "test:ui": "vitest --ui"
+    }
 }

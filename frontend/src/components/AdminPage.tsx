@@ -29,9 +29,8 @@ export function AdminPage({ onLogout }: AdminPageProps) {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = localStorage.getItem('access_token');
         const res = await fetch(`${API_BASE_URL}/admin/users`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          credentials: 'include'
         });
         if (res.ok) {
           const data = await res.json();
@@ -53,14 +52,9 @@ export function AdminPage({ onLogout }: AdminPageProps) {
     if (!selectedUserId) return;
 
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`${API_BASE_URL}/admin/users/${selectedUserId}/role`, {
+      const res = await fetch(`${API_BASE_URL}/admin/users/${selectedUserId}/role?new_role=${newRole}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ new_role: newRole })
+        credentials: 'include'
       });
 
       if (res.ok) {

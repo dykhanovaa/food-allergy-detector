@@ -239,6 +239,7 @@ function App() {
         <RegisterPage
           onRegister={handleRegister}
           onNavigateToLogin={() => setCurrentPage('login')}
+          onNavigateToProfile={() => setCurrentPage('profile')}
         />
       )}
       
