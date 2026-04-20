@@ -74,21 +74,21 @@ jobs:
       - name: Build container images
         run: docker compose build
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs:
-      - container-build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    steps:
-      - name: Deploy to target host
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd ${{ secrets.DEPLOY_PATH }}
-            git pull
-            cp -n .env.example .env || true
-            docker compose pull || true
-            docker compose up -d --build --remove-orphans
+  # deploy:
+  #   runs-on: ubuntu-latest
+  #   needs:
+  #     - container-build
+  #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+  #   steps:
+  #     - name: Deploy to target host
+  #       uses: appleboy/ssh-action@v1.2.0
+  #       with:
+  #         host: ${{ secrets.DEPLOY_HOST }}
+  #         username: ${{ secrets.DEPLOY_USER }}
+  #         key: ${{ secrets.DEPLOY_SSH_KEY }}
+  #         script: |
+  #           cd ${{ secrets.DEPLOY_PATH }}
+  #           git pull
+  #           cp -n .env.example .env || true
+  #           docker compose pull || true
+  #           docker compose up -d --build --remove-orphans
